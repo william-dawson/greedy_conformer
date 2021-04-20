@@ -1,0 +1,6 @@
+name: conformer
+channels:
+  - defaults
+dependencies:
+  - openbabel
+prefix: /Users/wddawson/miniconda3/envs/conformer

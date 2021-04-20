@@ -9,3 +9,7 @@ the RMSD value that you use as a tolerance. The output will be written
 to failures.txt and successes.txt. Failures details which file matched
 to something else in the set.
 
+To use this you need to install the python bindings for openbabel
+(either with pip or conda). The first time you run the script might
+be slow as it JIT compiles the code
+
