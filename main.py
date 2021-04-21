@@ -28,7 +28,8 @@ def filter(systems):
     passing = {}
 
     passing[flist[0]] = systems[flist[0]]
-    for f1, mol1 in systems.items():
+    for f1 in tqdm(list(systems)):
+        mol1 = systems[f1]
         found = False
         for f2, mol2 in passing.items():
             if f1 == f2:
@@ -50,6 +51,7 @@ if __name__ == "__main__":
     from sys import argv
     from glob import glob
     from os.path import join
+    from tqdm import tqdm
 
     # Get the input path
     if len(argv) < 3:
@@ -58,13 +60,17 @@ if __name__ == "__main__":
     cutoff = float(argv[2])
 
     # Read in the systems
+    print("Reading in systems")
     systems = {}
-    for f in flist:
+    for i in tqdm(range(len(flist))):
+        f = flist[i]
         systems[f] = read_babel(f)
 
     # Filter
+    print("Filtering")
     passing, failures = filter(systems)
 
+    print("Writing Output")
     # Write out the failures
     with open(join("failures.txt"), "w") as ofile:
         for k, rmsd in failures.items():

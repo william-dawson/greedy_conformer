@@ -3,4 +3,5 @@ channels:
   - defaults
 dependencies:
   - openbabel
+  - tqdm
 prefix: /Users/wddawson/miniconda3/envs/conformer
