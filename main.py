@@ -24,6 +24,20 @@ def read_babel(f):
     return mol
 
 
+def write_babel(mol, fname):
+    """
+    Write an xyz file from an openbabel molecule
+    """
+    from openbabel.openbabel import OBConversion
+
+    conv = OBConversion()
+    conv.SetOutFormat("xyz")
+
+    sval = conv.WriteString(mol)
+    with open(fname, "w") as ofile:
+        ofile.write(sval)
+
+
 def energy(mol):
     """
     Compute the energy of a molecule using GAFF.
@@ -35,18 +49,45 @@ def energy(mol):
     return ff.Energy()
 
 
-def filter(systems, energies, rmsd_cutoff, energy_cutoff):
+def max_deviation(mol1, mol2):
+    """
+    Return the furthest atom distance.
+    """
+    from numpy import array
+    from numpy.linalg import norm
+    plist = []
+    numlist = []
+
+    for i in range(mol2.NumAtoms()):
+        at = mol2.GetAtom(i+1)
+        plist.append([at.GetX(), at.GetY(), at.GetZ()])
+        numlist.append(at.GetAtomicNum())
+
+    minlist = []
+    for i in range(mol1.NumAtoms()):
+        at = mol1.GetAtom(i+1)
+        pos = array([at.GetX(), at.GetY(), at.GetZ()])
+        anum = at.GetAtomicNum()
+
+        minlist.append(min([norm(pos - pos2)
+                           for pos2, num2 in zip(plist, numlist)
+                           if anum == num2]))
+
+    return max(minlist)
+
+
+def filter(systems, energies, rmsd_cutoff, max_cutoff, energy_cutoff,
+           align_dir):
     """
     Filter the systems based on an RMSD criteria.
     """
-    from openbabel.openbabel import OBAlign
+    from openbabel.openbabel import OBAlign, OBMol
 
     failures = {}
     passing = {}
 
     align = OBAlign(True, True)
 
-    passing[flist[0]] = systems[flist[0]]
     for f1 in tqdm(list(systems)):
         mol1 = systems[f1]
         found = False
@@ -59,11 +100,17 @@ def filter(systems, energies, rmsd_cutoff, energy_cutoff):
                 continue
             align.SetTargetMol(mol2)
             align.Align()
-            score = align.GetRMSD()
-            if score < rmsd_cutoff:
-                failures[f1 + "\t" + f2] = str(score)+"\t"+str(ediff)
-                found = True
-                break
+            rmsd = align.GetRMSD()
+            if rmsd < rmsd_cutoff:
+                align_mol = OBMol(mol2)
+                align.UpdateCoords(align_mol)
+                maxdev = max_deviation(mol1, align_mol)
+                if maxdev < max_cutoff:
+                    failures[(f1, f2)] = {"rmsd": rmsd, "maxdev": maxdev,
+                                          "ediff": ediff}
+                    write_babel(align_mol, join(align_dir, f2))
+                    found = True
+                    break
         if not found:
             passing[f1] = mol1
 
@@ -73,22 +120,28 @@ def filter(systems, energies, rmsd_cutoff, energy_cutoff):
 if __name__ == "__main__":
     from sys import argv
     from glob import glob
-    from os.path import join
+    from os.path import join, basename, exists
     from tqdm import tqdm
+    from yaml import load, SafeLoader
 
     # Get the input path
-    if len(argv) < 4:
-        raise Exception("Requires input path, rmsd cutoff, energy cutoff")
-    flist = glob(join(argv[1], "*"))
-    rmsd_cutoff = float(argv[2])
-    energy_cutoff = float(argv[3])
+    if len(argv) < 2:
+        raise Exception("Please specify the configure file.")
+    with open(argv[1]) as ifile:
+        parameters = load(ifile, Loader=SafeLoader)
+
+    if not exists(parameters["aligned_directory"]):
+        raise Exception("directory", parameters["aligned_directory"],
+                        "does not exist.")
+
+    flist = glob(join(parameters["input"], "*"))
 
     # Read in the systems
     print("Reading in systems")
     systems = {}
     for i in tqdm(range(len(flist))):
         f = flist[i]
-        systems[f] = read_babel(f)
+        systems[basename(f)] = read_babel(f)
 
     # Compute the energies
     print("Computing Energies")
@@ -98,14 +151,22 @@ if __name__ == "__main__":
 
     # Filter
     print("Filtering")
-    passing, failures = filter(systems, energies, rmsd_cutoff, energy_cutoff)
+    passing, failures = filter(systems, energies,
+                               float(parameters["rmsd_cutoff"]),
+                               float(parameters["max_distance_cutoff"]),
+                               float(parameters["energy_cutoff"]),
+                               parameters["aligned_directory"])
 
     print("Writing Output")
     # Write out the failures
     with open(join("failures.txt"), "w") as ofile:
-        ofile.write("System 1\tSystem 2\tRMSD\tEnergy Difference (%)\n")
-        for k, rmsd in failures.items():
-            ofile.write(k + "\t" + str(rmsd) + "\n")
+        ofile.write("System 1\tSystem 2\t")
+        ofile.write("RMSD\tMax Dist\tEnergy Difference (%)\n")
+        for k, v in failures.items():
+            ofile.write(k[0] + "\t" + k[1] + "\t")
+            ofile.write(str(v["rmsd"]) + "\t")
+            ofile.write(str(v["maxdev"]) + "\t")
+            ofile.write(str(v["ediff"]) + "\n")
 
     # Write out the successes
     with open(join("successes.txt"), "w") as ofile:

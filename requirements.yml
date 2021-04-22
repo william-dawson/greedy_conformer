@@ -4,4 +4,5 @@ channels:
 dependencies:
   - openbabel
   - tqdm
+  - pyyaml
 prefix: /Users/wddawson/miniconda3/envs/conformer
