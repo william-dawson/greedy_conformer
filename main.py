@@ -44,17 +44,20 @@ def filter(systems, energies, rmsd_cutoff, energy_cutoff):
     failures = {}
     passing = {}
 
+    align = OBAlign(True, True)
+
     passing[flist[0]] = systems[flist[0]]
     for f1 in tqdm(list(systems)):
         mol1 = systems[f1]
         found = False
+        align.SetRefMol(mol1)
         for f2, mol2 in passing.items():
             if f1 == f2:
                 continue
             ediff = 100 * abs(energies[f1] - energies[f2]) / abs(energies[f1])
             if ediff > energy_cutoff:
                 continue
-            align = OBAlign(mol1, mol2, True, True)
+            align.SetTargetMol(mol2)
             align.Align()
             score = align.GetRMSD()
             if score < rmsd_cutoff:
