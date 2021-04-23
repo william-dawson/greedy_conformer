@@ -6,7 +6,7 @@ a simple greedy algorithm to do the pruning, and assess similarity in terms
 of energy, RMSD, and maximum deviation of a given atom.
 
 This code depends on the following packages: openbabel (with python bindings),
-tqdm, and pyyaml. All of these can be installed with pip.
+tqdm, numpy, and pyyaml. All of these can be installed with pip.
 
 ## Usage
 

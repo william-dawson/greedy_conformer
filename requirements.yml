@@ -5,4 +5,5 @@ dependencies:
   - openbabel
   - tqdm
   - pyyaml
+  - numpy
 prefix: /Users/wddawson/miniconda3/envs/conformer
