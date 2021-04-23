@@ -98,12 +98,20 @@ def filter(systems, energies, rmsd_cutoff, max_cutoff, energy_cutoff,
             ediff = 100 * abs(energies[f1] - energies[f2]) / abs(energies[f1])
             if ediff > energy_cutoff:
                 continue
+            # Three times appears to be enough to converge
             align.SetTargetMol(mol2)
+            align.Align()
+            rmsd_first = align.GetRMSD()
+            align_mol = OBMol(mol2)
+            align.UpdateCoords(align_mol)
+            align.SetTargetMol(align_mol)
+            align.Align()
+            rmsd = align.GetRMSD()
+            align.UpdateCoords(align_mol)
+            align.SetTargetMol(align_mol)
             align.Align()
             rmsd = align.GetRMSD()
             if rmsd < rmsd_cutoff:
-                align_mol = OBMol(mol2)
-                align.UpdateCoords(align_mol)
                 maxdev = max_deviation(mol1, align_mol)
                 if maxdev < max_cutoff:
                     failures[(f1, f2)] = {"rmsd": rmsd, "maxdev": maxdev,
