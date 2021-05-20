@@ -24,6 +24,8 @@ The `config.yaml` file has the following parameters:
   two structures (in %).
 * aligned_directory: when a duplicate is detected, the structure is aligned
   to what it was matched to, and written as a file in this directory.
+* ignore_smiles: a list of substructures that should be excluded from the
+  matching procedure.
 
 After the program runs, the following files are produced:
 * failures.txt - a list of conformer pairs that were too similar, and the

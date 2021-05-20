@@ -6,6 +6,42 @@ Usage:
 """
 
 
+def ignore_smiles(systems, patterns, align_dir):
+    """
+    """
+    from openbabel.openbabel import OBSmartsPattern, OBAtomBondIter
+
+    remove_dict = {x: [] for x in systems}
+
+    # Find the atoms to remove using the smart patterns.
+    for smi in patterns:
+        pat = OBSmartsPattern()
+        pat.Init(smi)
+        for name, mol in systems.items():
+            pat.Match(mol)
+            for match in pat.GetMapList():
+                for atom_id in match:
+                    remove_dict[name].append(atom_id)
+                    at = mol.GetAtom(atom_id)
+                    for bond in OBAtomBondIter(at):
+                        idx1 = bond.GetBeginAtomIdx()
+                        idx2 = bond.GetEndAtomIdx()
+                        if mol.GetAtom(idx1).GetAtomicNum() == 1:
+                            remove_dict[name].append(idx1)
+                        if mol.GetAtom(idx2).GetAtomicNum() == 1:
+                            remove_dict[name].append(idx2)
+            remove_dict[name] = sorted(list(set(remove_dict[name])),
+                                       reverse=True)
+
+    # Remove those atoms.
+    for name, mol in systems.items():
+        for idx in remove_dict[name]:
+            at = mol.GetAtom(idx)
+            mol.DeleteAtom(at)
+
+    return systems
+
+
 def read_babel(f):
     """
     Read in an xyz file into an openbabel molecule.
@@ -156,6 +192,10 @@ if __name__ == "__main__":
     energies = {}
     for f in tqdm(list(systems)):
         energies[f] = energy(systems[f])
+
+    # Ignore smiles.
+    ignored = ignore_smiles(systems, parameters["ignore_smiles"],
+                            parameters["aligned_directory"])
 
     # Filter
     print("Filtering")
